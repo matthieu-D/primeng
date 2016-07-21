@@ -35,6 +35,7 @@ export class Draggable {
                 
             event.dataTransfer.setData(this.scope, this.scope);
             this.onDragStart.emit(event);
+	    event.stopPropagation();	
         }
         else {
             event.preventDefault();
