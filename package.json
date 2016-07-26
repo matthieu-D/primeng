@@ -1,5 +1,5 @@
 {
-  "name": "primeng-fork",
+  "name": "primeng",
   "version": "1.0.2",
   "scripts": {
     "tsc": "tsc",
