@@ -5,10 +5,6 @@ node_modules
 showcase
 index.html
 
-# typescript
-*.ts
-!*.d.ts
-
 # git
 .git
 .gitignore

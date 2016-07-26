@@ -10,6 +10,64 @@ import {LazyLoadEvent} from '../common';
 import {FilterMetadata} from '../common';
 import {SortMeta} from '../common';
 import {DomHandler} from '../dom/domhandler';
+import {Subscription} from 'rxjs/Subscription';
+
+@Component({
+    selector: 'p-dtRadioButton',
+    template: `
+        <div class="ui-radiobutton ui-widget">
+            <div class="ui-helper-hidden-accessible">
+                <input type="radio" [checked]="checked">
+            </div>
+            <div class="ui-radiobutton-box ui-widget ui-radiobutton-relative ui-state-default" (click)="handleClick($event)"
+                        (mouseenter)="hover=true" (mouseleave)="hover=false"
+                        [ngClass]="{'ui-state-hover':hover,'ui-state-active':checked}">
+                <span class="ui-radiobutton-icon" [ngClass]="{'fa fa-fw fa-circle':checked}"></span>
+            </div>
+        </div>
+    `
+})
+export class DTRadioButton {
+    
+    @Input() checked: boolean;
+
+    @Output() onClick: EventEmitter<any> = new EventEmitter();
+    
+    handleClick(event) {
+        this.onClick.emit(event);
+    }
+}
+
+@Component({
+    selector: 'p-dtCheckbox',
+    template: `
+        <div class="ui-chkbox ui-widget">
+            <div class="ui-helper-hidden-accessible">
+                <input type="checkbox" [checked]="checked">
+            </div>
+            <div class="ui-chkbox-box ui-widget ui-corner-all ui-state-default" (click)="handleClick($event)"
+                        (mouseover)="hover=true" (mouseout)="hover=false" 
+                        [ngClass]="{'ui-state-hover':hover&&!disabled,'ui-state-active':checked&&!disabled,'ui-state-disabled':disabled}">
+                <span class="ui-chkbox-icon ui-c" [ngClass]="{'fa fa-fw fa-check':checked}"></span>
+            </div>
+        </div>
+    `
+})
+export class DTCheckbox {
+    
+    @Input() checked: boolean;
+    
+    @Input() disabled: boolean;
+
+    @Output() onChange: EventEmitter<any> = new EventEmitter();
+    
+    handleClick(event) {
+        if(!this.disabled) {
+            this.onChange.emit({originalEvent: event, checked: !this.checked});
+        }
+
+    }
+}
 
 @Component({
     selector: 'p-dataTable',
@@ -19,6 +77,8 @@ import {DomHandler} from '../dom/domhandler';
             <div class="ui-datatable-header ui-widget-header" *ngIf="header" [ngStyle]="{'width': scrollWidth}">
                 <ng-content select="header"></ng-content>
             </div>
+            <p-paginator [rows]="rows" [first]="first" [totalRecords]="totalRecords" [pageLinkSize]="pageLinks" styleClass="ui-paginator-bottom"
+                (onPageChange)="paginate($event)" [rowsPerPageOptions]="rowsPerPageOptions" *ngIf="paginator && paginatorPosition!='bottom' || paginatorPosition =='both'"></p-paginator>
             <div class="ui-datatable-tablewrapper" *ngIf="!scrollable">
                 <table>
                     <thead>
@@ -26,13 +86,14 @@ import {DomHandler} from '../dom/domhandler';
                             <th #headerCell *ngFor="let col of columns;let lastCol = last" [ngStyle]="col.style" [class]="col.styleClass" [style.display]="col.hidden ? 'none' : 'table-cell'"
                                 (click)="sort($event,col)" (mouseenter)="hoveredHeader = $event.target" (mouseleave)="hoveredHeader = null"
                                 [ngClass]="{'ui-state-default ui-unselectable-text':true, 'ui-state-hover': headerCell === hoveredHeader && col.sortable,
-                                'ui-sortable-column': col.sortable,'ui-state-active': isSorted(col), 'ui-resizable-column': resizableColumns}" 
+                                'ui-sortable-column': col.sortable,'ui-state-active': isSorted(col), 'ui-resizable-column': resizableColumns,'ui-selection-column':col.selectionMode}" 
                                 [draggable]="reorderableColumns" (dragstart)="onColumnDragStart($event)" (dragover)="onColumnDragover($event)" (dragleave)="onColumnDragleave($event)" (drop)="onColumnDrop($event)">
                                 <span class="ui-column-resizer" *ngIf="resizableColumns && ((columnResizeMode == 'fit' && !lastCol) || columnResizeMode == 'expand')" (mousedown)="initColumnResize($event)">&nbsp;</span>
-                                <span class="ui-column-title">{{col.header}}</span>
+                                <span class="ui-column-title" *ngIf="!col.selectionMode">{{col.header}}</span>
                                 <span class="ui-sortable-column-icon fa fa-fw fa-sort" *ngIf="col.sortable"
                                      [ngClass]="{'fa-sort-desc': (getSortOrder(col) == -1),'fa-sort-asc': (getSortOrder(col) == 1)}"></span>
                                 <input type="text" pInputText class="ui-column-filter" *ngIf="col.filter" [value]="filters[col.field] ? filters[col.field].value : ''" (click)="onFilterInputClick($event)" (keyup)="onFilterKeyup($event.target.value, col.field, col.filterMatchMode)"/>
+                                <p-dtCheckbox *ngIf="col.selectionMode=='multiple'" (onChange)="toggleRowsWithCheckbox($event)" [checked]="allSelected" [disabled]="isEmpty()"></p-dtCheckbox>
                             </th>
                         </tr>
                         <tr *ngFor="let headerRow of headerRows" class="ui-state-default">
@@ -64,9 +125,9 @@ import {DomHandler} from '../dom/domhandler';
                                     (click)="handleRowClick($event, rowData)" (dblclick)="rowDblclick($event,rowData)" (contextmenu)="onRowRightClick($event,rowData)"
                                     [ngClass]="{'ui-datatable-even':even,'ui-datatable-odd':odd,'ui-state-hover': (selectionMode && rowElement == hoveredRow), 'ui-state-highlight': isSelected(rowData)}">
                                 <td *ngFor="let col of columns" [ngStyle]="col.style" [class]="col.styleClass" [style.display]="col.hidden ? 'none' : 'table-cell'"
-                                    [ngClass]="{'ui-editable-column':col.editable}" (click)="switchCellToEditMode($event.target,col,rowData)">
+                                    [ngClass]="{'ui-editable-column':col.editable,'ui-selection-column':col.selectionMode}" (click)="switchCellToEditMode($event.target,col,rowData)">
                                     <span class="ui-column-title" *ngIf="responsive">{{col.header}}</span>
-                                    <span class="ui-cell-data" *ngIf="!col.template">{{resolveFieldData(rowData,col.field)}}</span>
+                                    <span class="ui-cell-data" *ngIf="!col.template && !col.expander && !col.selectionMode">{{resolveFieldData(rowData,col.field)}}</span>
                                     <span class="ui-cell-data" *ngIf="col.template">
                                         <p-columnTemplateLoader [column]="col" [rowData]="rowData" [rowIndex]="rowIndex + first"></p-columnTemplateLoader>
                                     </span>
@@ -74,6 +135,8 @@ import {DomHandler} from '../dom/domhandler';
                                             (blur)="switchCellToViewMode($event.target,col,rowData,true)" (keydown)="onCellEditorKeydown($event, col, rowData)"/>
                                     <div class="ui-row-toggler fa fa-fw ui-c" [ngClass]="{'fa-chevron-circle-down':isRowExpanded(rowData), 'fa-chevron-circle-right': !isRowExpanded(rowData)}"
                                         *ngIf="col.expander" (click)="toggleRow(rowData)"></div>
+                                    <p-dtRadioButton *ngIf="col.selectionMode=='single'" (onClick)="selectRowWithRadio(rowData)" [checked]="isSelected(rowData)"></p-dtRadioButton>
+                                    <p-dtCheckbox *ngIf="col.selectionMode=='multiple'" (onChange)="toggleRowWithCheckbox($event,rowData)" [checked]="isSelected(rowData)"></p-dtCheckbox>
                                 </td>
                             </tr>
                             <tr *ngIf="expandableRows && isRowExpanded(rowData)">
@@ -142,16 +205,16 @@ import {DomHandler} from '../dom/domhandler';
                 </table>
             </div>
             <p-paginator [rows]="rows" [first]="first" [totalRecords]="totalRecords" [pageLinkSize]="pageLinks" styleClass="ui-paginator-bottom"
-                (onPageChange)="paginate($event)" [rowsPerPageOptions]="rowsPerPageOptions" *ngIf="paginator"></p-paginator>
+                (onPageChange)="paginate($event)" [rowsPerPageOptions]="rowsPerPageOptions" *ngIf="paginator && paginatorPosition!='top' || paginatorPosition =='both'"></p-paginator>
             <div class="ui-datatable-footer ui-widget-header" *ngIf="footer">
                 <ng-content select="footer"></ng-content>
             </div>
         </div>
     `,
-    directives: [Paginator,InputText,ColumnTemplateLoader,RowExpansionLoader],
+    directives: [Paginator,InputText,ColumnTemplateLoader,RowExpansionLoader,DTRadioButton,DTCheckbox],
     providers: [DomHandler]
 })
-export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck {
+export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck,OnDestroy {
 
     @Input() value: any[];
 
@@ -184,6 +247,8 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
     @Output() onRowUnselect: EventEmitter<any> = new EventEmitter();
 
     @Output() onRowDblclick: EventEmitter<any> = new EventEmitter();
+    
+    @Output() onHeaderCheckboxToggle: EventEmitter<any> = new EventEmitter();
     
     @Output() onContextMenuSelect: EventEmitter<any> = new EventEmitter();
 
@@ -233,6 +298,10 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
     
     @Input() emptyMessage: string = 'No records found';
     
+    @Input() paginatorPosition: string = 'bottom';
+    
+    @Input() expandedRows: any[];
+    
     @Output() onEditInit: EventEmitter<any> = new EventEmitter();
 
     @Output() onEditComplete: EventEmitter<any> = new EventEmitter();
@@ -279,8 +348,6 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
     
     private sortColumn: Column;
     
-    private expandedRows: any[];
-    
     private percentageScrollHeight: boolean;
         
     private scrollBody: any;
@@ -320,11 +387,13 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
     globalFilterFunction: any;
 
     preventBlurOnEdit: boolean;
+    
+    columnsSubscription: Subscription;
 
     constructor(private el: ElementRef, private domHandler: DomHandler, differs: IterableDiffers, 
         @Query(Column) cols: QueryList<Column>, private renderer: Renderer, changeDetector: ChangeDetectorRef) {
         this.differ = differs.find([]).create(null);
-        cols.changes.subscribe(_ => {
+        this.columnsSubscription = cols.changes.subscribe(_ => {
             this.columns = cols.toArray();
             this.columnsUpdated = true;
             changeDetector.markForCheck();
@@ -639,7 +708,7 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
                 this.selectionChange.emit(this.selection);
             }
 
-            this.onRowUnselect.emit({originalEvent: event, data: rowData});
+            this.onRowUnselect.emit({originalEvent: event, data: rowData, type: 'row'});
         }
         else {
             if(this.isSingleSelectionMode()) {
@@ -652,8 +721,42 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
                 this.selectionChange.emit(this.selection);
             }
 
-            this.onRowSelect.emit({originalEvent: event, data: rowData});
+            this.onRowSelect.emit({originalEvent: event, data: rowData, type: 'row'});
         }
+    }
+    
+    selectRowWithRadio(rowData:any) {
+        if(this.selection != rowData) {
+            this.selection = rowData;
+            this.selectionChange.emit(this.selection);
+            this.onRowSelect.emit({originalEvent: event, data: rowData, type: 'radiobutton'});
+        }
+    }
+    
+    toggleRowWithCheckbox(event,rowData) {
+        let selectionIndex = this.findIndexInSelection(rowData);
+        this.selection = this.selection||[];
+        
+        if(selectionIndex != -1) {
+            this.selection.splice(selectionIndex, 1);
+            this.onRowUnselect.emit({originalEvent: event, data: rowData, type: 'checkbox'});
+        }
+            
+        else {
+            this.selection.push(rowData);
+            this.onRowSelect.emit({originalEvent: event, data: rowData, type: 'checkbox'});
+        }
+                 
+        this.selectionChange.emit(this.selection);
+    }
+    
+    toggleRowsWithCheckbox(event) {
+        if(event.checked)
+            this.selection = this.dataToRender.slice(0);
+        else
+            this.selection = [];
+        
+        this.onHeaderCheckboxToggle.emit({originalEvent: event, checked: event.checked});
     }
     
     onRowRightClick(event, rowData) {
@@ -693,16 +796,11 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
     findIndexInSelection(rowData: any) {
         let index: number = -1;
 
-        if(this.selectionMode && this.selection) {
-            if(this.isSingleSelectionMode()) {
-                index = (this.selection == rowData) ? 0 : - 1;
-            }
-            else if(this.isMultipleSelectionMode()) {
-                for(let i = 0; i  < this.selection.length; i++) {
-                    if(this.selection[i] == rowData) {
-                        index = i;
-                        break;
-                    }
+        if(this.selection) {
+            for(let i = 0; i  < this.selection.length; i++) {
+                if(this.selection[i] == rowData) {
+                    index = i;
+                    break;
                 }
             }
         }
@@ -711,7 +809,24 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
     }
 
     isSelected(rowData) {
-        return this.findIndexInSelection(rowData) != -1;
+        return ((rowData && rowData == this.selection) || this.findIndexInSelection(rowData) != -1);
+    }
+    
+    get allSelected() {
+        let val = true;
+        if(this.dataToRender && this.selection && (this.dataToRender.length == this.selection.length)) {
+            for(let data of this.dataToRender) {
+                console.log(data.vin);
+                if(!this.isSelected(data)) {
+                    val = false;
+                    break;
+                }
+            }
+        }
+        else {
+            val = false;
+        }
+        return val;
     }
 
     onFilterKeyup(value, field, matchMode) {
@@ -979,8 +1094,12 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
     
     fixColumnWidths() {
         let columns = this.domHandler.find(this.el.nativeElement, 'th.ui-resizable-column');
-        for(let i = 0; i < columns.length; i++) {
-            columns[i].style.width = columns[i].offsetWidth + 'px';
+        for(let col of columns) {
+            col.style.width = 'auto';
+        }
+        
+        for(let col of columns) {
+            col.style.width = col.offsetWidth + 'px';
         }
     }
     
@@ -1168,7 +1287,7 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
     isRowExpanded(row) {
         return this.findExpandedRowIndex(row) != -1;
     }
-    
+        
     public reset() {
         this.sortField = null;
         this.sortOrder = 1;
@@ -1241,6 +1360,10 @@ export class DataTable implements AfterViewChecked,AfterViewInit,OnInit,DoCheck 
         if(this.resizableColumns) {
             this.documentColumnResizeListener();
             this.documentColumnResizeEndListener();
+        }
+        
+        if(this.columnsSubscription) {
+            this.columnsSubscription.unsubscribe();
         }
     }
 }

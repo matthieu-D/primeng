@@ -20,6 +20,7 @@ const CHECKBOX_VALUE_ACCESSOR: Provider = new Provider(NG_VALUE_ACCESSOR, {
                 <span class="ui-chkbox-icon ui-c" [ngClass]="{'fa fa-fw fa-check':checked}"></span>
             </div>
         </div>
+        <label class="ui-chkbox-label" (click)="onClick($event,cb,true)" *ngIf="label">{{label}}</label>
     `,
     providers: [CHECKBOX_VALUE_ACCESSOR]
 })
@@ -30,6 +31,10 @@ export class Checkbox implements ControlValueAccessor {
     @Input() name: string;
 
     @Input() disabled: boolean;
+    
+    @Input() binary: string;
+    
+    @Input() label: string;
     
     @Output() onChange: EventEmitter<any> = new EventEmitter();
     
@@ -54,7 +59,7 @@ export class Checkbox implements ControlValueAccessor {
         
         this.checked = !this.checked;
 
-        if(this.name) {
+        if(!this.binary) {
             if(this.checked)
                 this.addValue(this.value);
             else
@@ -74,7 +79,7 @@ export class Checkbox implements ControlValueAccessor {
     }
 
     isChecked(): boolean {
-        if(this.name)
+        if(!this.binary)
             return this.findValueIndex(this.value) !== -1;
         else
             return this.model;

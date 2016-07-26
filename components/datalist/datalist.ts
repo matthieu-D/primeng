@@ -2,6 +2,7 @@ import {Component,ElementRef,AfterViewInit,OnDestroy,DoCheck,Input,Output,Simple
 import {Header} from '../common';
 import {Footer} from '../common';
 import {Paginator} from '../paginator/paginator';
+import {TemplateWrapper} from '../common';
 
 @Component({
     selector: 'p-dataList',
@@ -10,19 +11,23 @@ import {Paginator} from '../paginator/paginator';
             <div class="ui-datalist-header ui-widget-header ui-corner-top" *ngIf="header">
                 <ng-content select="header"></ng-content>
             </div>
+            <p-paginator [rows]="rows" [first]="first" [totalRecords]="totalRecords" [pageLinkSize]="pageLinks" 
+            (onPageChange)="paginate($event)" styleClass="ui-paginator-bottom" [rowsPerPageOptions]="rowsPerPageOptions" *ngIf="paginator  && paginatorPosition!='bottom' || paginatorPosition =='both'"></p-paginator>
             <div class="ui-datalist-content ui-widget-content">
                 <ul class="ui-datalist-data">
-                    <template ngFor [ngForOf]="dataToRender" [ngForTemplate]="itemTemplate"></template>
+                    <li *ngFor="let item of dataToRender">
+                        <template [pTemplateWrapper]="itemTemplate" [item]="item"></template>
+                    </li>
                 </ul>
             </div>
             <p-paginator [rows]="rows" [first]="first" [totalRecords]="totalRecords" [pageLinkSize]="pageLinks" 
-            (onPageChange)="paginate($event)" styleClass="ui-paginator-bottom" [rowsPerPageOptions]="rowsPerPageOptions" *ngIf="paginator"></p-paginator>
+            (onPageChange)="paginate($event)" styleClass="ui-paginator-bottom" [rowsPerPageOptions]="rowsPerPageOptions" *ngIf="paginator  && paginatorPosition!='top' || paginatorPosition =='both'"></p-paginator>
             <div class="ui-datalist-footer ui-widget-header ui-corner-bottom" *ngIf="footer">
                 <ng-content select="footer"></ng-content>
             </div>
         </div>
     `,
-    directives: [Paginator]
+    directives: [Paginator,TemplateWrapper]
 })
 export class DataList implements AfterViewInit,DoCheck {
 
@@ -45,6 +50,8 @@ export class DataList implements AfterViewInit,DoCheck {
     @Input() style: any;
 
     @Input() styleClass: string;
+    
+    @Input() paginatorPosition: string = 'bottom';
         
     @ContentChild(Header) header;
 
